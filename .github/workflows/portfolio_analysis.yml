@@ -26,143 +26,52 @@ jobs:
     needs: check-weekday
     if: needs.check-weekday.outputs.is_weekday == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # Increased timeout for data fetching
-    strategy:
-      matrix:
-        python-version: ['3.10']
-      fail-fast: false  # Continue with other versions if one fails
+    timeout-minutes: 30
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+    - uses: actions/checkout@v4
     
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.10'
         cache: 'pip'
-
-    - name: Configure network settings
-      run: |
-        echo "::group::Network Configuration"
-        sudo sysctl -w net.ipv4.tcp_keepalive_time=60
-        sudo sysctl -w net.ipv4.tcp_keepalive_intvl=60
-        sudo sysctl -w net.ipv4.tcp_keepalive_probes=5
-        echo "::endgroup::"
-
-    - name: Install system dependencies
-      run: |
-        echo "::group::System Dependencies"
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          libssl-dev \
-          libffi-dev \
-          python3-dev \
-          python3-pip \
-          python3-venv \
-          ca-certificates \
-          curl
-        echo "::endgroup::"
-
-    - name: Create and activate virtual environment
-      run: |
-        echo "::group::Virtual Environment Setup"
-        python -m venv venv
-        source venv/bin/activate
-        pip install --upgrade pip setuptools wheel
-        echo "::endgroup::"
 
     - name: Install dependencies
       run: |
-        echo "::group::Python Dependencies"
-        source venv/bin/activate
-        if [ -f requirements.txt ]; then
-          pip install -r requirements.txt
-        else
-          pip install \
-            pandas \
-            numpy \
-            yfinance==0.2.36 \
-            networkx \
-            python-louvain \
-            scipy \
-            matplotlib \
-            requests \
-            python-dotenv \
-            urllib3==2.0.7
-        fi
-        echo "::endgroup::"
-
-    - name: Install additional dependencies
-      run: |
-        echo "::group::Additional Dependencies"
-        source venv/bin/activate
-        pip install \
-          scikit-learn \
-          python-telegram-bot \
-          bandit \
-          tenacity \
-          retry
-        echo "::endgroup::"
-
-    - name: Verify Network Connectivity
-      run: |
-        echo "::group::Network Verification"
-        curl -v https://query2.finance.yahoo.com
-        ping -c 4 query2.finance.yahoo.com
-        echo "::endgroup::"
+        python -m pip install --upgrade pip
+        pip install pandas numpy yfinance==0.2.36 networkx python-louvain scipy matplotlib requests python-dotenv urllib3==2.0.7 scikit-learn python-telegram-bot
 
     - name: Run Portfolio Analysis
       env:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         PYTHONUNBUFFERED: 1
-        REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
-        SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
       run: |
-        echo "::group::Portfolio Analysis"
-        source venv/bin/activate
-        export PYTHONIOENCODING=utf8
         if [ -f portfolio_analyzer.py ]; then
-          python -X dev portfolio_analyzer.py
+          python portfolio_analyzer.py
         else
-          python -X dev paste.txt
+          python paste.txt
         fi
-        echo "::endgroup::"
-
-    - name: Security Scan with Bandit
-      run: |
-        echo "::group::Security Scan"
-        source venv/bin/activate
-        bandit -r . -f custom
-        echo "::endgroup::"
 
     - name: Create Results Directory
       run: mkdir -p results
-
+    
     - name: Upload Analysis Results
       uses: actions/upload-artifact@v4
-      if: always()  # Upload even if analysis fails
       with:
-        name: portfolio-analysis-${{ github.run_id }}-py${{ matrix.python-version }}
-        path: |
-          results/
-          *.log
+        name: portfolio-analysis-${{ github.run_id }}
+        path: results/
         retention-days: 30
     
     - name: Commit and Push Results
-      if: github.event_name != 'pull_request' && success()
+      if: github.event_name != 'pull_request'
       run: |
-        echo "::group::Commit Results"
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         git add results/
         git commit -m "Update portfolio analysis results [skip ci]" || echo "No changes to commit"
         git push || echo "No changes to push"
-        echo "::endgroup::"
 
     - name: Send Failure Notification
       if: failure()
@@ -174,9 +83,7 @@ jobs:
           ❌ Portfolio Analysis Failed
           Repository: ${{ github.repository }}
           Workflow: ${{ github.workflow }}
-          Python Version: ${{ matrix.python-version }}
           Run ID: ${{ github.run_id }}
-          Check the GitHub Actions logs for more details.
           
     - name: Send Success Notification
       if: success()
@@ -188,6 +95,4 @@ jobs:
           ✅ Portfolio Analysis Completed Successfully
           Repository: ${{ github.repository }}
           Workflow: ${{ github.workflow }}
-          Python Version: ${{ matrix.python-version }}
           Run ID: ${{ github.run_id }}
-          Results have been uploaded and committed.
