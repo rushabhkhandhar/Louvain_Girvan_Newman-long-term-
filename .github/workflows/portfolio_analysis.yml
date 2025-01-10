@@ -1,104 +1,60 @@
-name: Indian Market Portfolio Analysis
+name: Indian Market Analysis Workflow
 
 on:
   schedule:
-    - cron: '0 4 1,15 * *'  # Run on 1st and 15th of every month at 4 AM UTC
-  workflow_dispatch:  # Allow manual triggering
-  push:
-    branches: [ main ]
+    # Runs at 2:30 UTC (8:00 AM IST) every 15 days
+    - cron: '30 2 1,16 * *'
+  workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  portfolio-analysis:
+  market_analysis:
+    # Only run on weekdays
+    if: github.event.schedule != null && github.event.schedule == '30 2 1,16 * *' && fromJSON('{"0":"Sunday","1":"Monday","2":"Tuesday","3":"Wednesday","4":"Thursday","5":"Friday","6":"Saturday"}')[format(now(), 'w')] != 'Saturday' && fromJSON('{"0":"Sunday","1":"Monday","2":"Tuesday","3":"Wednesday","4":"Thursday","5":"Friday","6":"Saturday"}')[format(now(), 'w')] != 'Sunday'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11']
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+    - name: Checkout main branch
+      uses: actions/checkout@v3
       with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip'
+        ref: main
+        fetch-depth: 0
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          libssl-dev \
-          libffi-dev \
-          python3-dev \
-          python3-pip \
-          python3-venv
-
-    - name: Create and activate virtual environment
-      run: |
-        python -m venv venv
-        source venv/bin/activate
-        pip install --upgrade pip setuptools wheel
-
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
     - name: Install dependencies
       run: |
-        source venv/bin/activate
-        pip install -r requirements.txt
+        python -m pip install --upgrade pip
+        pip install pandas numpy yfinance networkx python-louvain scipy matplotlib requests python-dotenv
 
-    - name: Install additional dependencies
-      run: |
-        source venv/bin/activate
-        pip install \
-          scikit-learn \
-          python-telegram-bot \
-          bandit
+    - name: Create results directory
+      run: mkdir -p results
 
-    - name: Run Portfolio Analysis
+    - name: Set up environment variables
       env:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
-        source venv/bin/activate
-        python portfolio_analyzer.py
+        echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN" >> $GITHUB_ENV
+        echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID" >> $GITHUB_ENV
 
-    - name: Security Scan with Bandit
-      run: |
-        source venv/bin/activate
-        bandit -r . -f custom
+    - name: Run market analysis
+      run: python paste.txt
 
-    - name: Create Results Directory
-      run: mkdir -p results
-    
-    - name: Upload Analysis Results
-      uses: actions/upload-artifact@v4
+    - name: Upload analysis results
+      uses: actions/upload-artifact@v3
       with:
-        name: portfolio-analysis-${{ github.run_id }}-py${{ matrix.python-version }}
+        name: market-analysis-results
         path: results/
-        retention-days: 30
-    
-    - name: Send Failure Notification
-      if: failure()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        message: |
-          ❌ Portfolio Analysis Failed
-          Repository: ${{ github.repository }}
-          Workflow: ${{ github.workflow }}
-          Python Version: ${{ matrix.python-version }}
-          Run ID: ${{ github.run_id }}
-          
-    - name: Send Success Notification
-      if: success()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        message: |
-          ✅ Portfolio Analysis Completed Successfully
-          Repository: ${{ github.repository }}
-          Workflow: ${{ github.workflow }}
-          Python Version: ${{ matrix.python-version }}
-          Run ID: ${{ github.run_id }}
+        retention-days: 90
+
+    - name: Commit and push to main branch
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git checkout main
+        git add results/
+        git commit -m "Update market analysis results [skip ci]" || echo "No changes to commit"
+        git push origin main || echo "No changes to push"
