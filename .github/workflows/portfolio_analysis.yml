@@ -8,14 +8,19 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
@@ -30,8 +35,10 @@ jobs:
         python portfolio_analyzer.py
     
     - name: Upload results
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
-        name: portfolio-analysis-results
-        path: |
-          portfolio_metrics.txt
+        name: portfolio-analysis-results-${{ github.run_id }}
+        path: results/
+        retention-days: 90
+        if-no-files-found: error
+        compression-level: 9
