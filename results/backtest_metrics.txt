@@ -1,0 +1,9 @@
+
+    Backtest Results
+    --------------------------------------------------
+    Latest Portfolio Value: 2.23
+    Latest Rolling Volatility: 16.70%
+    Latest Rolling Sharpe: 3.18
+    Latest Drawdown: -6.68%
+    Average Daily Return: 0.26%
+        

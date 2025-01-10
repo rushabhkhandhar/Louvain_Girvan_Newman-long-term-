@@ -1,0 +1,9 @@
+
+    Forward Test Results
+    --------------------------------------------------
+    Latest Portfolio Value: 0.97
+    Latest Rolling Volatility: 15.41%
+    Latest Rolling Sharpe: -2.75
+    Latest Drawdown: -5.56%
+    Average Daily Return: -0.15%
+        

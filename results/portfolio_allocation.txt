@@ -1,0 +1,44 @@
+Portfolio Allocation:
+
+Optimal Weights:
+BHARTIARTL.NS: 13.3%
+HCLTECH.NS: 10.9%
+SUNPHARMA.NS: 12.6%
+M&M.NS: 4.9%
+BOSCHLTD.NS: 2.8%
+LUPIN.NS: 13.2%
+TRENT.NS: 15.0%
+VEDL.NS: 5.1%
+ZOMATO.NS: 9.6%
+INOXWIND.NS: 5.5%
+INOXGREEN.NS: 2.4%
+AURUM.NS: 4.8%
+
+Sector Exposure:
+Energy: 0.0%
+IT: 10.9%
+Banking: 0.0%
+FMCG: 0.0%
+Telecom: 13.3%
+Infrastructure: 0.0%
+Financial Services: 0.0%
+Automobile: 7.7%
+Cement: 0.0%
+Consumer Durables: 0.0%
+Pharma: 25.8%
+Renewable Energy: 7.8%
+Logistics: 0.0%
+Steel: 0.0%
+Healthcare: 0.0%
+Insurance: 0.0%
+Conglomerate: 0.0%
+Chemicals: 0.0%
+Retail: 15.0%
+Industrial Equipment: 0.0%
+Engineering: 0.0%
+Real Estate: 4.8%
+Aerospace: 0.0%
+Transportation: 0.0%
+IT Services: 0.0%
+Metals: 5.1%
+Food Services: 9.6%
