@@ -734,8 +734,8 @@ class EnhancedIndianMarketAnalyzer:
         """
         Enhanced Telegram notification with message splitting and formatting
         """
-        bot_token = os.getenv("TELEGRAM_BOT_TOKEN","8107303216:AAEMXt6CCw96zyE4zB9iECn1CBxv8qo_Afw")
-        chat_id = os.getenv("TELEGRAM_CHAT_ID","5955144350")
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID")
         
         if not bot_token or not chat_id:
             logging.info("Skipping Telegram notification (missing token or chat_id).")
