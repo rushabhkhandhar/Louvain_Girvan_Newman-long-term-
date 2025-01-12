@@ -11,17 +11,8 @@ import warnings
 from datetime import datetime, timedelta
 warnings.filterwarnings('ignore')
 import time
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
-from prophet import Prophet
-import arch  # for GARCH volatility modeling
-import logging
-
 # from dotenv import load_dotenv
 # load_dotenv()
-
 
 class EnhancedIndianMarketAnalyzer:
     def __init__(self, start_date: str, end_date: str, sector_mapping: dict):
@@ -46,18 +37,6 @@ class EnhancedIndianMarketAnalyzer:
             'volatility': 0.25,  # Alert if annualized volatility exceeds 25%
             'return': -0.05     # Alert if monthly return below -5%
         }
-        self.forecasting_models = {
-            'lstm': None,
-            'prophet': None,
-            'arima': None
-        }
-        self.stress_scenarios = {
-            'bull_market': 1.5,
-            'bear_market': 0.5,
-            'high_volatility': 2.0
-        }
-        self.reoptimization_frequency = 'quarterly'  # Can be monthly, quarterly, annually
-
 
     def fetch_data(self, symbols):
         """
@@ -85,11 +64,11 @@ class EnhancedIndianMarketAnalyzer:
                     )
                     
                     if df.empty:
-                        logging.info(f"Warning: No data received for {symbol}")
+                        print(f"Warning: No data received for {symbol}")
                         continue
                         
                     if 'Adj Close' not in df.columns:
-                        logging.info(f"Warning: No Adj Close column for {symbol}")
+                        print(f"Warning: No Adj Close column for {symbol}")
                         if 'Close' in df.columns:
                             data[symbol] = df['Close']
                         continue
@@ -98,11 +77,11 @@ class EnhancedIndianMarketAnalyzer:
                     break  # Success - exit retry loop
                     
                 except Exception as e:
-                    logging.info(f"Attempt {attempt + 1}/{max_retries} failed for {symbol}: {str(e)}")
+                    print(f"Attempt {attempt + 1}/{max_retries} failed for {symbol}: {str(e)}")
                     if attempt < max_retries - 1:
                         time.sleep(retry_delay)
                     else:
-                        logging.info(f"Failed to fetch data for {symbol} after {max_retries} attempts")
+                        print(f"Failed to fetch data for {symbol} after {max_retries} attempts")
         
         # Check if we got any data
         if data.empty:
@@ -318,7 +297,7 @@ class EnhancedIndianMarketAnalyzer:
         result = minimize(objective, init_guess, method='SLSQP', bounds=bounds, constraints=constraints)
 
         if not result.success:
-            logging.info("Warning: Optimization did not converge. Using fallback allocation strategy.")
+            print("Warning: Optimization did not converge. Using fallback allocation strategy.")
             # Implement a fallback strategy here if needed
             return None
 
@@ -367,175 +346,6 @@ class EnhancedIndianMarketAnalyzer:
                             f"has breached threshold of {self.alert_thresholds['return']:.1%}")
 
         return alerts
-
-    def advanced_time_series_forecasting(self, method='lstm'):
-            """
-            Advanced time series forecasting with multiple methods
-            """
-            if self.returns_data is None:
-                raise ValueError("No returns data available")
-
-            # Prepare data for forecasting
-            data = self.returns_data.copy()
-            
-            if method == 'lstm':
-                # LSTM Forecasting
-                scaler = MinMaxScaler()
-                scaled_data = scaler.fit_transform(data)
-                
-                # Prepare sequences
-                def create_sequences(data, seq_length=10):
-                    X, y = [], []
-                    for i in range(len(data) - seq_length):
-                        X.append(data[i:i+seq_length])
-                        y.append(data[i+seq_length])
-                    return np.array(X), np.array(y)
-                
-                X, y = create_sequences(scaled_data)
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-                
-                # Build LSTM model
-                model = Sequential([
-                    LSTM(50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])),
-                    Dense(len(data.columns))
-                ])
-                model.compile(optimizer='adam', loss='mse')
-                model.fit(X_train, y_train, epochs=50, verbose=0)
-                
-                self.forecasting_models['lstm'] = {
-                    'model': model,
-                    'scaler': scaler
-                }
-                
-                # Forecast next period returns
-                last_sequence = scaled_data[-10:]
-                forecasted_scaled = model.predict(last_sequence.reshape(1, 10, len(data.columns)))
-                forecasted_returns = scaler.inverse_transform(forecasted_scaled)[0]
-                
-                return pd.Series(forecasted_returns, index=data.columns)
-            
-            elif method == 'prophet':
-                # Prophet Forecasting (works better with single time series)
-                prophet_forecasts = {}
-                for column in data.columns:
-                    prophet_df = pd.DataFrame({
-                        'ds': data.index,
-                        'y': data[column]
-                    })
-                    
-                    model = Prophet()
-                    model.fit(prophet_df)
-                    
-                    future = model.make_future_dataframe(periods=30)
-                    forecast = model.predict(future)
-                    
-                    prophet_forecasts[column] = forecast['yhat'].iloc[-1]
-                    
-                self.forecasting_models['prophet'] = prophet_forecasts
-                return pd.Series(prophet_forecasts)
-            
-            elif method == 'garch':
-                # GARCH volatility forecasting
-                garch_forecasts = {}
-                for column in data.columns:
-                    model = arch.arch_model(data[column], vol='Garch', p=1, q=1)
-                    results = model.fit()
-                    forecast = results.forecast(horizon=30)
-                    garch_forecasts[column] = forecast.variance.iloc[-1]
-                
-                return pd.Series(garch_forecasts)
-
-    def stress_test_portfolio(self, weights):
-            """
-            Comprehensive stress testing of portfolio under different scenarios
-            """
-            stress_results = {}
-            
-            for scenario, multiplier in self.stress_scenarios.items():
-                # Simulate scenario by scaling returns
-                stressed_returns = self.returns_data * multiplier
-                daily_returns = (stressed_returns * weights).sum(axis=1)
-                
-                cum_value = (1 + daily_returns).cumprod()
-                max_drawdown = (cum_value / cum_value.cummax() - 1).min()
-                
-                stress_results[scenario] = {
-                    'max_drawdown': max_drawdown,
-                    'final_value': cum_value.iloc[-1],
-                    'volatility': daily_returns.std() * np.sqrt(252)
-                }
-            
-            return stress_results
-
-    def periodic_portfolio_reoptimization(self):
-            """
-            Dynamically re-optimize portfolio based on predefined frequency
-            """
-            # Implement sliding window approach
-            window_map = {
-                'monthly': 21,   # Trading days in a month
-                'quarterly': 63,  # Trading days in a quarter
-                'annually': 252   # Trading days in a year
-            }
-            
-            window = window_map.get(self.reoptimization_frequency, 63)
-            
-            # Use rolling window for optimization
-            rolling_returns = self.returns_data.rolling(window=window).apply(
-                lambda x: x.mean() * 252  # Annualized return
-            )
-            
-            # Use forecasting to adjust expected returns
-            forecasted_returns = self.advanced_time_series_forecasting(method='lstm')
-            
-            # Blend historical and forecasted returns
-            blended_returns = (rolling_returns.iloc[-1] + forecasted_returns) / 2
-            
-            # Re-optimize with updated return expectations
-            updated_portfolio = self.optimize_portfolio(
-                target_return=blended_returns.mean(),
-                risk_free_rate=0.05
-            )
-            
-            return updated_portfolio
-    
-    def get_sleep_duration(frequency):
-        """Calculate sleep duration based on rebalancing frequency"""
-        duration_map = {
-            'monthly': 30 * 24 * 3600,  # 30 days
-            'quarterly': 90 * 24 * 3600,  # 90 days
-            'annually': 365 * 24 * 3600   # 365 days
-        }
-        return duration_map.get(frequency, 30 * 24 * 3600)
-
-    # Add this to your main function or create a separate monitoring script
-    def continuous_portfolio_monitoring(analyzer):
-        """
-        Continuous monitoring and adaptive portfolio management
-        """
-        while True:
-            # Periodic checks and adjustments
-            try:
-                # Forecast and re-optimize
-                new_portfolio = analyzer.periodic_portfolio_reoptimization()
-                
-                # Stress test new portfolio
-                stress_results = analyzer.stress_test_portfolio(new_portfolio['weights'])
-                
-                # Log or notify about portfolio changes
-                logging.info("Portfolio Rebalanced:")
-                logging.info(f"New Weights: {new_portfolio['weights']}")
-                logging.info("Stress Test Results:")
-                for scenario, results in stress_results.items():
-                    logging.info(f"{scenario}: {results}")
-                
-                # Optional: Send alerts or notifications
-                
-            except Exception as e:
-                logging.info(f"Error in continuous monitoring: {e}")
-            
-            # Wait for next rebalancing period
-            time.slweep(get_sleep_duration(analyzer.reoptimization_frequency))
 
     def backtest_portfolio(self, weights, window=252):
         """
@@ -591,11 +401,11 @@ class EnhancedIndianMarketAnalyzer:
                 df = yf.download(symbol, start=start_forward, end=end_forward, progress=False)
                 forward_data[symbol] = df['Adj Close']
             except Exception as e:
-                logging.info(f"Error fetching forward data for {symbol}: {e}")
+                print(f"Error fetching forward data for {symbol}: {e}")
 
         # Check if we have any data
         if forward_data.empty:
-            logging.info("Warning: No forward data available for testing")
+            print("Warning: No forward data available for testing")
             return None, []
 
         forward_returns = forward_data.pct_change().dropna(how='all')
@@ -603,7 +413,7 @@ class EnhancedIndianMarketAnalyzer:
 
         # Check if we have any returns data
         if forward_returns.empty:
-            logging.info("Warning: No forward returns data available for testing")
+            print("Warning: No forward returns data available for testing")
             return None, []
 
         daily_returns_fw = (forward_returns * weights).sum(axis=1)
@@ -647,98 +457,81 @@ class EnhancedIndianMarketAnalyzer:
         
         with open(output_file, 'w') as f:
             f.write(metrics_summary)
-            
-    def format_notification(self, portfolio, fw_alerts=None, max_items=10):
+
+    def format_notification(self, portfolio, fw_alerts, max_items=5):
         """
-        Format notification message with dynamic portfolio allocation
-        
-        Args:
-            portfolio (dict): Optimized portfolio dictionary
-            fw_alerts (list): List of forward testing alerts
-            max_items (int): Maximum number of holdings to display
-        
-        Returns:
-            str: Formatted notification message
+        Format notification message while keeping it within Telegram's limits
         """
-        # Ensure portfolio and weights exist
-        if not portfolio or 'weights' not in portfolio:
-            return "❌ Portfolio data unavailable"
-    
-        # Current timestamp for context
-        current_time = datetime.now().strftime('%Y-%m-%d')
-    
-        # Prepare notification base
-        notification = f"📊 Portfolio Update ({current_time})\n\n"
-    
-        # Portfolio Performance Metrics
-        notification += (
-            f"📈 Return: {portfolio.get('expected_return', 0):.1%}\n"
-            f"📊 Vol: {portfolio.get('volatility', 0):.1%}\n"
-            f"⚖️ Sharpe: {portfolio.get('sharpe_ratio', 0):.2f}\n\n"
+        # Start with basic portfolio metrics
+        notification = (
+            f"📊 Portfolio Update ({datetime.now().strftime('%Y-%m-%d')})\n\n"
+            f"📈 Return: {portfolio['expected_return']:.1%}\n"
+            f"📊 Vol: {portfolio['volatility']:.1%}\n"
+            f"⚖️ Sharpe: {portfolio['sharpe_ratio']:.2f}\n"
         )
-    
-        # Sort weights and filter significant holdings
-        weights = portfolio['weights']
-        sorted_holdings = weights[weights >= 0.01].sort_values(ascending=False)
-        
-        # Key Holdings Section
-        notification += "💼 Key Holdings (>1%):\n"
+
+        # Calculate cumulative weights and show only significant holdings
+        sorted_holdings = portfolio['weights'].sort_values(ascending=False)
         cumulative_sum = 0
+        notification += "\n💼 Key Holdings (>1%):\n"
         for stock, weight in sorted_holdings.items():
-            # Remove .NS suffix if present
-            stock_display = stock.replace('.NS', '')
-            notification += f"• {stock_display}: {weight:.1%}\n"
-            cumulative_sum += weight
-            
-            # Limit to max_items
-            if len(notification.split('\n')) >= max_items + 5:
+            if weight >= 0.01:  # Only show holdings >= 1%
+                cumulative_sum += weight
+                notification += f"• {stock.replace('.NS', '')}: {weight:.1%}\n"
+            if cumulative_sum >= 1.0:
                 break
-        
-        # Add remaining if not fully allocated
         if cumulative_sum < 1.0:
             notification += f"• Others: {(1 - cumulative_sum):.1%}\n"
-    
-        # Sector Exposure Section
-        sector_exposure = self.get_sector_exposure(weights)
-        sorted_sectors = dict(sorted(sector_exposure.items(), key=lambda x: x[1], reverse=True))
-        
-        notification += "\n🏢 Sector Allocation (to 100%):\n"
+
+        # Show only major sector exposures
+        sorted_sectors = dict(sorted(portfolio['sector_exposure'].items(), 
+                                key=lambda x: x[1], reverse=True))
         cumulative_sum = 0
+        sectors_added = 0
+        
+# Calculate cumulative sector exposure with running total
+        sorted_sectors = dict(sorted(portfolio['sector_exposure'].items(), 
+                                key=lambda x: x[1], reverse=True))
+        cumulative_sum = 0
+        sector_exposure = "\n🏢 Sector Allocation (to 100%):\n"
+
         for sector, exposure in sorted_sectors.items():
-            if exposure > 0.01:  # Only show sectors with >1% exposure
+            if exposure > 0.001:  # Filter out extremely small exposures (< 0.1%)
                 cumulative_sum += exposure
-                notification += f"• {sector}: {exposure:.1%} (Cum: {cumulative_sum:.1%})\n"
+                sector_exposure += f"• {sector}: {exposure:.1%} (Cum: {cumulative_sum:.1%})\n"
                 
-                # Stop if we've reached 100% or very close
-                if cumulative_sum >= 0.999:
+                # Break if we've reached 100% or very close to it
+                if cumulative_sum >= 0.9999:  # Account for floating point precision
                     break
-    
-        # Add Alerts if present
+
+        # Add any remaining exposure if significant
+        remaining = 1.0 - cumulative_sum
+        if remaining > 0.001:  # Only show if remaining is > 0.1%
+            sector_exposure += f"• Others: {remaining:.1%} (Final: 100%)\n"
+
+        notification += sector_exposure
+
+        # Add alerts if any (limited to most important ones)
         if fw_alerts:
             notification += "\n⚠️ Alerts:\n"
-            for alert in fw_alerts[:3]:  # Limit to 3 most important alerts
-                notification += f"• {alert}\n"
-            
-            if len(fw_alerts) > 3:
-                notification += f"• +{len(fw_alerts)-3} more alerts\n"
-    
-        # Optional: Add a performance summary or recommendation
-        if portfolio.get('sharpe_ratio', 0) > 2:
-            notification += "\n🌟 Strong Performance: Portfolio showing robust returns\n"
-        elif portfolio.get('sharpe_ratio', 0) < 1:
-            notification += "\n⚠️ Performance Note: Consider portfolio review\n"
-    
+            for alert in fw_alerts[:2]:  # Show maximum 2 most important alerts
+                # Remove "ALERT:" prefix to save space
+                alert_text = alert.split('ALERT: ')[-1]
+                notification += f"• {alert_text}\n"
+            if len(fw_alerts) > 2:
+                notification += f"• +{len(fw_alerts)-2} more alerts\n"
+
         return notification
 
     def notify_via_telegram(self, message):
         """
         Enhanced Telegram notification with message splitting and formatting
         """
-        bot_token = os.getenv("TELEGRAM_BOT_TOKEN","8107303216:AAEMXt6CCw96zyE4zB9iECn1CBxv8qo_Afw")
-        chat_id = os.getenv("TELEGRAM_CHAT_ID","5955144350")
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID")
         
         if not bot_token or not chat_id:
-            logging.info("Skipping Telegram notification (missing token or chat_id).")
+            print("Skipping Telegram notification (missing token or chat_id).")
             return
 
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -770,30 +563,30 @@ class EnhancedIndianMarketAnalyzer:
                 resp = requests.post(url, json=payload, timeout=10)
                 
                 if resp.status_code == 200:
-                    logging.info(f"Notification part sent successfully")
+                    print(f"Notification part sent successfully")
                 else:
                     # If markdown fails, try without formatting
-                    logging.info(f"Trying without markdown formatting...")
+                    print(f"Trying without markdown formatting...")
                     payload["parse_mode"] = ""
                     resp = requests.post(url, json=payload, timeout=10)
                     
                     if resp.status_code != 200:
-                        logging.info(f"Telegram notification failed: {resp.status_code} {resp.text}")
+                        print(f"Telegram notification failed: {resp.status_code} {resp.text}")
                         
                 # Add delay between messages to avoid rate limiting
                 if len(messages) > 1:
                     time.sleep(1)
                     
             except Exception as e:
-                logging.info(f"Error sending Telegram notification: {e}")
+                print(f"Error sending Telegram notification: {e}")
 
 def main():
     # Define sector mapping for stocks
     current_time = datetime.utcnow()
-    logging.info(f"Analysis running at UTC: {current_time}")
+    print(f"Analysis running at UTC: {current_time}")
 
     sector_mapping = {
-       "RELIANCE.NS": "Energy",
+    "RELIANCE.NS": "Energy",
     "TCS.NS": "IT",
     "HDFCBANK.NS": "Banking",
     "INFY.NS": "IT",
@@ -894,122 +687,60 @@ def main():
     "AXISCADES.NS": "Engineering"
     }
 
+    # Initialize analyzer with 3-year backtest period
     backtest_start = (current_time - timedelta(days=3*365)).strftime('%Y-%m-%d')
     backtest_end = current_time.strftime('%Y-%m-%d')
     
-    # Additional configuration options
-    config = {
-        'reoptimization_frequency': 'quarterly',
-        'forecast_methods': ['lstm', 'prophet', 'garch'],
-        'stress_test_scenarios': {
-            'bull_market': 1.5,
-            'bear_market': 0.5,
-            'high_volatility': 2.0
-        },
-        'risk_parameters': {
-            'target_return': 0.15,
-            'risk_free_rate': 0.05,
-            'max_sector_exposure': 0.30,
-            'max_stock_weight': 0.15
-        }
-    }
-
     analyzer = EnhancedIndianMarketAnalyzer(
         start_date=backtest_start,
         end_date=backtest_end,
         sector_mapping=sector_mapping
     )
 
-    # Update analyzer with configuration
-    analyzer.reoptimization_frequency = config['reoptimization_frequency']
-    analyzer.stress_scenarios = config['stress_test_scenarios']
-
     try:
         # Create output directory if it doesn't exist
         os.makedirs('results', exist_ok=True)
         
-        logging.info("1. Fetching and preparing data...")
+        print("1. Fetching historical data...")
         analyzer.fetch_data(list(sector_mapping.keys()))
         analyzer.calculate_returns()
         analyzer.build_correlation_matrix(threshold=0.3)
         analyzer.create_network_graph()
 
-        logging.info("2. Advanced Forecasting...")
-        # Run multiple forecasting methods
-        forecasts = {}
-        for method in config['forecast_methods']:
-            try:
-                forecast = analyzer.advanced_time_series_forecasting(method)
-                forecasts[method] = forecast
-                logging.info(f"Forecast using {method} method completed.")
-            except Exception as e:
-                logging.info(f"Forecasting with {method} failed: {e}")
-
-        logging.info("3. Detecting communities and analyzing performance...")
+        print("2. Detecting communities and analyzing performance...")
         partition = analyzer.detect_communities_louvain()
         comm_analysis = analyzer.analyze_communities(partition)
 
-        logging.info("4. Optimizing portfolio...")
+        print("3. Optimizing portfolio...")
         portfolio = analyzer.optimize_portfolio(
-            target_return=config['risk_parameters']['target_return'],
-            risk_free_rate=config['risk_parameters']['risk_free_rate'],
-            max_sector_exposure=config['risk_parameters']['max_sector_exposure'],
-            max_stock_weight=config['risk_parameters']['max_stock_weight']
+            target_return=0.15,
+            risk_free_rate=0.05,
+            max_sector_exposure=0.30,
+            max_stock_weight=0.15
         )
 
         if portfolio is None:
             raise ValueError("Portfolio optimization failed")
 
-        # Comprehensive Reporting
-        logging.info("5. Generating Comprehensive Portfolio Analysis...")
-        
-        # Stress Testing
-        logging.info("Running Stress Tests...")
-        stress_results = analyzer.stress_test_portfolio(portfolio['weights'])
-        
-        # Save Stress Test Results
-        with open('results/stress_test_results.txt', 'w') as f:
-            f.write("Portfolio Stress Test Results:\n")
-            for scenario, results in stress_results.items():
-                f.write(f"\n{scenario.upper()} Scenario:\n")
-                f.write(f"Max Drawdown: {results['max_drawdown']:.2%}\n")
-                f.write(f"Final Portfolio Value: {results['final_value']:.2f}\n")
-                f.write(f"Volatility: {results['volatility']:.2%}\n")
-
-        # Periodic Re-optimization Simulation
-        logging.info("Simulating Periodic Re-optimization...")
-        periodic_portfolio = analyzer.periodic_portfolio_reoptimization()
-
-        # Detailed Reporting
-        logging.info("6. Generating Detailed Reports...")
-        
-        # Portfolio Allocation Report
-        with open('results/comprehensive_portfolio_report.txt', 'w') as f:
-            f.write("Comprehensive Portfolio Analysis\n")
-            f.write("=" * 50 + "\n\n")
+        # Save portfolio allocation to file
+        with open('results/portfolio_allocation.txt', 'w') as f:
+            f.write("Portfolio Allocation:\n\n")
+            f.write("Optimal Weights:\n")
+            for stock, weight in portfolio['weights'].items():
+                if weight > 0.01:
+                    f.write(f"{stock}: {weight:.1%}\n")
             
-            # Original Portfolio Details
-            f.write("Original Portfolio Optimization:\n")
-            f.write(f"Expected Return: {portfolio['expected_return']:.2%}\n")
-            f.write(f"Volatility: {portfolio['volatility']:.2%}\n")
-            f.write(f"Sharpe Ratio: {portfolio['sharpe_ratio']:.2f}\n\n")
-            
-            # Periodic Re-optimization Comparison
-            f.write("Periodic Re-optimization Results:\n")
-            f.write(f"Expected Return: {periodic_portfolio['expected_return']:.2%}\n")
-            f.write(f"Volatility: {periodic_portfolio['volatility']:.2%}\n")
-            f.write(f"Sharpe Ratio: {periodic_portfolio['sharpe_ratio']:.2f}\n\n")
-            
-            # Forecasts Comparison
-            f.write("Forecasting Results:\n")
-            for method, forecast in forecasts.items():
-                f.write(f"{method.upper()} Forecast:\n")
-                f.write(str(forecast) + "\n\n")
+            f.write("\nSector Exposure:\n")
+            for sector, exposure in portfolio['sector_exposure'].items():
+                f.write(f"{sector}: {exposure:.1%}\n")
 
-        logging.info("7. Running Backtest and Forward Test...")
-        # Existing backtest and forward test code remains the same
+        print("4. Running backtest...")
         backtest_results, backtest_metrics = analyzer.backtest_portfolio(portfolio['weights'])
-        
+        analyzer.save_portfolio_performance(backtest_results, 
+                                         "Backtest Results",
+                                         'results/backtest_metrics.txt')
+
+        print("5. Running forward test...")
         test_period = 30
         forward_start = (current_time - timedelta(days=test_period)).strftime('%Y-%m-%d')
         forward_end = current_time.strftime('%Y-%m-%d')
@@ -1020,17 +751,39 @@ def main():
             forward_end
         )
 
-        # Notification with enhanced information
-        notification = analyzer.format_notification(portfolio, fw_alerts)
+        if fw_results is not None:
+            analyzer.save_portfolio_performance(fw_results,
+                                             "Forward Test Results",
+                                             'results/forward_test_metrics.txt')
 
-        # Send Telegram Notification
+        # Calculate cumulative weights for notification
+        sorted_holdings = portfolio['weights'].sort_values(ascending=False)
+        cumulative_sum = 0
+        holdings_text = "\nPortfolio Holdings (to 100%):\n"
+        
+        for stock, weight in sorted_holdings.items():
+            cumulative_sum += weight
+            holdings_text += f"- {stock}: {weight:.1%} (Cum: {cumulative_sum:.1%})\n"
+            if cumulative_sum >= 1.0:
+                break
+
+        # Calculate cumulative sector exposure
+        sorted_sectors = dict(sorted(portfolio['sector_exposure'].items(), 
+                                   key=lambda x: x[1], reverse=True))
+        cumulative_sum = 0
+        sector_text = "\nSector Exposure (to 100%):\n"
+        
+        for sector, exposure in sorted_sectors.items():
+            cumulative_sum += exposure
+            sector_text += f"- {sector}: {exposure:.1%} (Cum: {cumulative_sum:.1%})\n"
+            if cumulative_sum >= 1.0:
+                break
+
+        notification = analyzer.format_notification(portfolio, fw_alerts)
         analyzer.notify_via_telegram(notification)
 
     except Exception as e:
-        logging.info(f"Comprehensive Analysis Failed: {e}")
-        # Implement error logging or notification mechanism
-        import traceback
-        traceback.logging.info_exc()
+        print(f"Error formatting/sending notification: {e}")
 
 if __name__ == "__main__":
     main()

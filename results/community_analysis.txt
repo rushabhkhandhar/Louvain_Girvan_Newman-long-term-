@@ -1,0 +1,359 @@
+Community Analysis Results
+==================================================
+
+Community 0:
+--------------------
+Number of stocks: 13
+Average annual return: 31.27%
+Annual volatility: 25.64%
+Sharpe ratio: 1.02
+Sector concentration: 38.46%
+
+Sector breakdown:
+- Automobile: 5 stocks
+- Cement: 3 stocks
+- Energy: 1 stocks
+- Telecom: 1 stocks
+- Consumer Durables: 1 stocks
+- Pharma: 1 stocks
+- Retail: 1 stocks
+
+Stocks in community:
+- RELIANCE.NS
+- BHARTIARTL.NS
+- MARUTI.NS
+- ULTRACEMCO.NS
+- TITAN.NS
+- M&M.NS
+- GRASIM.NS
+- EICHERMOT.NS
+- HEROMOTOCO.NS
+- SHREECEM.NS
+- GLAND.NS
+- TRENT.NS
+- TVSMOTOR.NS
+
+==================================================
+
+Community 1:
+--------------------
+Number of stocks: 7
+Average annual return: 41.82%
+Annual volatility: 26.87%
+Sharpe ratio: 1.37
+Sector concentration: 71.43%
+
+Sector breakdown:
+- IT: 5 stocks
+- IT Services: 1 stocks
+- Food Services: 1 stocks
+
+Stocks in community:
+- TCS.NS
+- INFY.NS
+- HCLTECH.NS
+- WIPRO.NS
+- TECHM.NS
+- NAUKRI.NS
+- ZOMATO.NS
+
+==================================================
+
+Community 2:
+--------------------
+Number of stocks: 18
+Average annual return: 8.32%
+Annual volatility: 27.97%
+Sharpe ratio: 0.12
+Sector concentration: 44.44%
+
+Sector breakdown:
+- Banking: 8 stocks
+- Financial Services: 5 stocks
+- Real Estate: 2 stocks
+- Infrastructure: 1 stocks
+- Steel: 1 stocks
+- Chemicals: 1 stocks
+
+Stocks in community:
+- HDFCBANK.NS
+- ICICIBANK.NS
+- SBIN.NS
+- KOTAKBANK.NS
+- LT.NS
+- AXISBANK.NS
+- BAJFINANCE.NS
+- INDUSINDBK.NS
+- JSWSTEEL.NS
+- BAJAJFINSV.NS
+- SBICARD.NS
+- UPL.NS
+- BANDHANBNK.NS
+- CHOLAFIN.NS
+- DLF.NS
+- FEDERALBNK.NS
+- GODREJPROP.NS
+- PEL.NS
+
+==================================================
+
+Community 3:
+--------------------
+Number of stocks: 10
+Average annual return: 3.42%
+Annual volatility: 22.09%
+Sharpe ratio: -0.07
+Sector concentration: 80.00%
+
+Sector breakdown:
+- FMCG: 8 stocks
+- Chemicals: 2 stocks
+
+Stocks in community:
+- HINDUNILVR.NS
+- ITC.NS
+- ASIANPAINT.NS
+- NESTLEIND.NS
+- BRITANNIA.NS
+- PIDILITIND.NS
+- BERGEPAINT.NS
+- DABUR.NS
+- GODREJCP.NS
+- SRF.NS
+
+==================================================
+
+Community 4:
+--------------------
+Number of stocks: 8
+Average annual return: 34.81%
+Annual volatility: 23.81%
+Sharpe ratio: 1.25
+Sector concentration: 87.50%
+
+Sector breakdown:
+- Pharma: 7 stocks
+- Healthcare: 1 stocks
+
+Stocks in community:
+- SUNPHARMA.NS
+- DRREDDY.NS
+- APOLLOHOSP.NS
+- DIVISLAB.NS
+- CIPLA.NS
+- ALKEM.NS
+- AUROPHARMA.NS
+- LUPIN.NS
+
+==================================================
+
+Community 5:
+--------------------
+Number of stocks: 32
+Average annual return: 39.44%
+Annual volatility: 39.24%
+Sharpe ratio: 0.88
+Sector concentration: 25.00%
+
+Sector breakdown:
+- Energy: 8 stocks
+- Automobile: 4 stocks
+- Renewable Energy: 3 stocks
+- Industrial Equipment: 3 stocks
+- Banking: 2 stocks
+- Insurance: 1 stocks
+- Infrastructure: 1 stocks
+- Steel: 1 stocks
+- Metals: 1 stocks
+- Chemicals: 1 stocks
+- Aerospace: 1 stocks
+- Transportation: 1 stocks
+- Consumer Durables: 1 stocks
+- Cement: 1 stocks
+- Conglomerate: 1 stocks
+- Logistics: 1 stocks
+- Engineering: 1 stocks
+
+Stocks in community:
+- ADANIGREEN.NS
+- POWERGRID.NS
+- NTPC.NS
+- ONGC.NS
+- BPCL.NS
+- ADANIPORTS.NS
+- COALINDIA.NS
+- TATAMOTORS.NS
+- ADANIENT.NS
+- ABB.NS
+- AMBUJACEM.NS
+- BOSCHLTD.NS
+- CANBK.NS
+- CUMMINSIND.NS
+- ESCORTS.NS
+- HAL.NS
+- HAVELLS.NS
+- IGL.NS
+- IRCTC.NS
+- LICI.NS
+- PFC.NS
+- PNB.NS
+- RECLTD.NS
+- SIEMENS.NS
+- TATACHEM.NS
+- VEDL.NS
+- INOXWIND.NS
+- INOXGREEN.NS
+- MOTHERSON.NS
+- LLOYDSENGG.NS
+- HCC.NS
+- AXISCADES.NS
+
+==================================================
+
+Community 6:
+--------------------
+Number of stocks: 2
+Average annual return: 8.44%
+Annual volatility: 24.49%
+Sharpe ratio: 0.14
+Sector concentration: 100.00%
+
+Sector breakdown:
+- Insurance: 2 stocks
+
+Stocks in community:
+- HDFCLIFE.NS
+- ICICIPRULI.NS
+
+==================================================
+
+Community 7:
+--------------------
+Number of stocks: 1
+Average annual return: 0.18%
+Annual volatility: 28.25%
+Sharpe ratio: -0.17
+Sector concentration: 100.00%
+
+Sector breakdown:
+- Retail: 1 stocks
+
+Stocks in community:
+- DMART.NS
+
+==================================================
+
+Community 8:
+--------------------
+Number of stocks: 1
+Average annual return: 69.33%
+Annual volatility: 48.95%
+Sharpe ratio: 1.31
+Sector concentration: 100.00%
+
+Sector breakdown:
+- Real Estate: 1 stocks
+
+Stocks in community:
+- AURUM.NS
+
+==================================================
+
+Community 9:
+--------------------
+Number of stocks: 1
+Average annual return: 1.61%
+Annual volatility: 26.62%
+Sharpe ratio: -0.13
+Sector concentration: 100.00%
+
+Sector breakdown:
+- Engineering: 1 stocks
+
+Stocks in community:
+- AIAENG.NS
+
+==================================================
+
+Community 10:
+--------------------
+Number of stocks: 1
+Average annual return: 35.54%
+Annual volatility: 33.80%
+Sharpe ratio: 0.90
+Sector concentration: 100.00%
+
+Sector breakdown:
+- Pharma: 1 stocks
+
+Stocks in community:
+- GLAXO.NS
+
+==================================================
+
+Community 11:
+--------------------
+Number of stocks: 1
+Average annual return: -9.84%
+Annual volatility: 31.27%
+Sharpe ratio: -0.47
+Sector concentration: 100.00%
+
+Sector breakdown:
+- IT: 1 stocks
+
+Stocks in community:
+- TATAELXSI.NS
+
+==================================================
+
+Community 12:
+--------------------
+Number of stocks: 1
+Average annual return: 44.76%
+Annual volatility: 33.14%
+Sharpe ratio: 1.20
+Sector concentration: 100.00%
+
+Sector breakdown:
+- FMCG: 1 stocks
+
+Stocks in community:
+- VBL.NS
+
+==================================================
+
+Community 13:
+--------------------
+Number of stocks: 1
+Average annual return: 7.60%
+Annual volatility: 31.64%
+Sharpe ratio: 0.08
+Sector concentration: 100.00%
+
+Sector breakdown:
+- Consumer Durables: 1 stocks
+
+Stocks in community:
+- WHIRLPOOL.NS
+
+==================================================
+
+Community 14:
+--------------------
+Number of stocks: 2
+Average annual return: 27.54%
+Annual volatility: 49.91%
+Sharpe ratio: 0.45
+Sector concentration: 50.00%
+
+Sector breakdown:
+- Pharma: 1 stocks
+- Chemicals: 1 stocks
+
+Stocks in community:
+- SOLARA.NS
+- CAMLINFINE.NS
+
+==================================================
+

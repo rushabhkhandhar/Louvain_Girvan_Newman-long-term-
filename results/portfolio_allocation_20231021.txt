@@ -1,0 +1,44 @@
+Portfolio Allocation for 2023-10-21
+
+Optimal Weights:
+BPCL.NS: 15.0%
+ABB.NS: 10.4%
+AIAENG.NS: 15.0%
+ALKEM.NS: 15.0%
+CUMMINSIND.NS: 15.0%
+GODREJPROP.NS: 14.6%
+TRENT.NS: 15.0%
+
+Sector Exposure:
+Energy: 15.0%
+IT: 0.0%
+Banking: 0.0%
+FMCG: 0.0%
+Telecom: 0.0%
+Infrastructure: 0.0%
+Financial Services: 0.0%
+Automobile: 0.0%
+Cement: 0.0%
+Consumer Durables: 0.0%
+Pharma: 15.0%
+Renewable Energy: 0.0%
+Logistics: 0.0%
+Steel: 0.0%
+Healthcare: 0.0%
+Insurance: 0.0%
+Conglomerate: 0.0%
+Chemicals: 0.0%
+Retail: 15.0%
+Industrial Equipment: 25.4%
+Engineering: 15.0%
+Real Estate: 14.6%
+Aerospace: 0.0%
+Transportation: 0.0%
+IT Services: 0.0%
+Metals: 0.0%
+Food Services: 0.0%
+
+Portfolio Metrics:
+Expected Return: 161.2%
+Volatility: 16.2%
+Sharpe Ratio: 9.65
