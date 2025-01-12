@@ -18,6 +18,8 @@ from tensorflow.keras.layers import LSTM, Dense
 from prophet import Prophet
 import arch  # for GARCH volatility modeling
 import logging
+from statsmodels.tsa.arima.model import ARIMA
+from pmdarima import auto_arima
 
 # from dotenv import load_dotenv
 # load_dotenv()
@@ -85,11 +87,11 @@ class EnhancedIndianMarketAnalyzer:
                     )
                     
                     if df.empty:
-                        logging.info(f"Warning: No data received for {symbol}")
+                        print(f"Warning: No data received for {symbol}")
                         continue
                         
                     if 'Adj Close' not in df.columns:
-                        logging.info(f"Warning: No Adj Close column for {symbol}")
+                        print(f"Warning: No Adj Close column for {symbol}")
                         if 'Close' in df.columns:
                             data[symbol] = df['Close']
                         continue
@@ -98,11 +100,11 @@ class EnhancedIndianMarketAnalyzer:
                     break  # Success - exit retry loop
                     
                 except Exception as e:
-                    logging.info(f"Attempt {attempt + 1}/{max_retries} failed for {symbol}: {str(e)}")
+                    print(f"Attempt {attempt + 1}/{max_retries} failed for {symbol}: {str(e)}")
                     if attempt < max_retries - 1:
                         time.sleep(retry_delay)
                     else:
-                        logging.info(f"Failed to fetch data for {symbol} after {max_retries} attempts")
+                        print(f"Failed to fetch data for {symbol} after {max_retries} attempts")
         
         # Check if we got any data
         if data.empty:
@@ -318,7 +320,7 @@ class EnhancedIndianMarketAnalyzer:
         result = minimize(objective, init_guess, method='SLSQP', bounds=bounds, constraints=constraints)
 
         if not result.success:
-            logging.info("Warning: Optimization did not converge. Using fallback allocation strategy.")
+            print("Warning: Optimization did not converge. Using fallback allocation strategy.")
             # Implement a fallback strategy here if needed
             return None
 
@@ -369,81 +371,139 @@ class EnhancedIndianMarketAnalyzer:
         return alerts
 
     def advanced_time_series_forecasting(self, method='lstm'):
-            """
-            Advanced time series forecasting with multiple methods
-            """
-            if self.returns_data is None:
-                raise ValueError("No returns data available")
+        """
+        Advanced time series forecasting with multiple methods:
+        - LSTM
+        - Prophet
+        - GARCH
+        - ARIMA (with auto_arima fallback for optimization)
+        """
+        if self.returns_data is None:
+            raise ValueError("No returns data available")
 
-            # Prepare data for forecasting
-            data = self.returns_data.copy()
+        # Prepare data for forecasting
+        data = self.returns_data.copy()
+        
+        if method == 'lstm':
+
+            scaler = MinMaxScaler()
+            scaled_data = scaler.fit_transform(data)
             
-            if method == 'lstm':
-                # LSTM Forecasting
-                scaler = MinMaxScaler()
-                scaled_data = scaler.fit_transform(data)
-                
-                # Prepare sequences
-                def create_sequences(data, seq_length=10):
-                    X, y = [], []
-                    for i in range(len(data) - seq_length):
-                        X.append(data[i:i+seq_length])
-                        y.append(data[i+seq_length])
-                    return np.array(X), np.array(y)
-                
-                X, y = create_sequences(scaled_data)
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-                
-                # Build LSTM model
-                model = Sequential([
-                    LSTM(50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])),
-                    Dense(len(data.columns))
-                ])
-                model.compile(optimizer='adam', loss='mse')
-                model.fit(X_train, y_train, epochs=50, verbose=0)
-                
-                self.forecasting_models['lstm'] = {
-                    'model': model,
-                    'scaler': scaler
-                }
-                
-                # Forecast next period returns
-                last_sequence = scaled_data[-10:]
-                forecasted_scaled = model.predict(last_sequence.reshape(1, 10, len(data.columns)))
-                forecasted_returns = scaler.inverse_transform(forecasted_scaled)[0]
-                
-                return pd.Series(forecasted_returns, index=data.columns)
+            # Nested function for creating LSTM sequences
+            def create_sequences(data_array, seq_length=10):
+                X, y = [], []
+                for i in range(len(data_array) - seq_length):
+                    X.append(data_array[i:i+seq_length])
+                    y.append(data_array[i+seq_length])
+                return np.array(X), np.array(y)
             
-            elif method == 'prophet':
-                # Prophet Forecasting (works better with single time series)
-                prophet_forecasts = {}
-                for column in data.columns:
-                    prophet_df = pd.DataFrame({
-                        'ds': data.index,
-                        'y': data[column]
-                    })
-                    
-                    model = Prophet()
-                    model.fit(prophet_df)
-                    
-                    future = model.make_future_dataframe(periods=30)
-                    forecast = model.predict(future)
-                    
-                    prophet_forecasts[column] = forecast['yhat'].iloc[-1]
-                    
-                self.forecasting_models['prophet'] = prophet_forecasts
-                return pd.Series(prophet_forecasts)
+            X, y = create_sequences(scaled_data)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
             
-            elif method == 'garch':
-                # GARCH volatility forecasting
-                garch_forecasts = {}
-                for column in data.columns:
-                    model = arch.arch_model(data[column], vol='Garch', p=1, q=1)
-                    results = model.fit()
+            model = Sequential([
+                LSTM(50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])),
+                Dense(len(data.columns))
+            ])
+            model.compile(optimizer='adam', loss='mse')
+            model.fit(X_train, y_train, epochs=50, verbose=0)
+            
+            self.forecasting_models['lstm'] = {
+                'model': model,
+                'scaler': scaler
+            }
+            
+            # Use the last seq_length steps for our forecast
+            last_sequence = scaled_data[-10:]
+            forecasted_scaled = model.predict(last_sequence.reshape(1, 10, len(data.columns)))
+            forecasted_returns = scaler.inverse_transform(forecasted_scaled)[0]
+            
+            return pd.Series(forecasted_returns, index=data.columns)
+        
+        elif method == 'prophet':
+    
+            prophet_forecasts = {}
+            for column in data.columns:
+                prophet_df = pd.DataFrame({
+                    'ds': data.index,
+                    'y': data[column]
+                })
+                
+                model = Prophet()
+                model.fit(prophet_df)
+                
+                future = model.make_future_dataframe(periods=30)
+                forecast = model.predict(future)
+                
+                # For demonstration, just take the last forecasted value
+                prophet_forecasts[column] = forecast['yhat'].iloc[-1]
+                
+            self.forecasting_models['prophet'] = prophet_forecasts
+            return pd.Series(prophet_forecasts)
+        
+        elif method == 'garch':
+    
+            garch_forecasts = {}
+            for column in data.columns:
+                model = arch.arch_model(data[column], vol='Garch', p=1, q=1)
+                try:
+                    results = model.fit(disp='off')
                     forecast = results.forecast(horizon=30)
-                    garch_forecasts[column] = forecast.variance.iloc[-1]
+                    # For demonstration, we retrieve the final row's variance
+                    garch_forecasts[column] = forecast.variance.iloc[-1].values[0]
+                except Exception as e:
+                    print(f"GARCH failed for {column}: {e}")
+                    garch_forecasts[column] = np.nan
+            
+            return pd.Series(garch_forecasts)
+        
+        elif method == 'arima':
+
+            arima_forecasts = {}
+            
+            for column in data.columns:
+                series = data[column].dropna()
+
+                if len(series) < 10:
+                    # Not enough data to reliably fit an ARIMA model
+                    arima_forecasts[column] = np.nan
+                    continue
                 
-                return pd.Series(garch_forecasts)
+                try:
+                    # Use auto_arima to find the best (p,d,q), but keep it fairly quick:
+                    auto_model = auto_arima(
+                        series,
+                        start_p=1,
+                        start_q=1,
+                        max_p=3,        # Increase if you need more complex models
+                        max_q=3,
+                        seasonal=False, # or True if your data is seasonal
+                        stepwise=True,  # stepwise search is usually faster
+                        suppress_warnings=True,
+                        error_action='ignore'
+                    )
+                    
+                    # Now we have a trained auto_arima model, we can forecast
+                    forecast_steps = 1
+                    prediction = auto_model.predict(n_periods=forecast_steps)
+                    arima_forecasts[column] = prediction[0] if len(prediction) > 0 else np.nan
+
+                except Exception as e:
+                    print(f"auto_arima failed for {column}: {e}")
+                    # Fallback to a fixed ARIMA(1,1,1) if auto_arima fails
+                    try:
+                        fallback_model = ARIMA(series, order=(1, 1, 1))
+                        results = fallback_model.fit()
+                        forecast_val = results.forecast(steps=1)
+                        arima_forecasts[column] = forecast_val.iloc[-1]
+                    except Exception as e2:
+                        print(f"Fallback ARIMA(1,1,1) also failed for {column}: {e2}")
+                        arima_forecasts[column] = np.nan
+            
+            self.forecasting_models['arima'] = arima_forecasts
+            return pd.Series(arima_forecasts)
+        
+        else:
+            raise ValueError(f"Method '{method}' not recognized.")
 
     def stress_test_portfolio(self, weights):
             """
@@ -499,48 +559,47 @@ class EnhancedIndianMarketAnalyzer:
             
             return updated_portfolio
     
-    def get_sleep_duration(frequency):
-        """Calculate sleep duration based on rebalancing frequency"""
-        duration_map = {
-            'monthly': 30 * 24 * 3600,  # 30 days
-            'quarterly': 90 * 24 * 3600,  # 90 days
-            'annually': 365 * 24 * 3600   # 365 days
-        }
-        return duration_map.get(frequency, 30 * 24 * 3600)
 
-    # Add this to your main function or create a separate monitoring script
+
+    def get_sleep_duration(frequency):
+
+        duration_map = {
+            'daily':     1   * 24 * 3600,
+            'weekly':    7   * 24 * 3600,
+            'monthly':   30  * 24 * 3600,
+            'quarterly': 90  * 24 * 3600,
+            'annually':  365 * 24 * 3600
+        }
+        
+        # Convert to lowercase for case-insensitive matching, default to 'monthly'
+        return duration_map.get(frequency.lower(), 30 * 24 * 3600)
+
     def continuous_portfolio_monitoring(analyzer):
-        """
-        Continuous monitoring and adaptive portfolio management
-        """
+  
         while True:
-            # Periodic checks and adjustments
             try:
                 # Forecast and re-optimize
                 new_portfolio = analyzer.periodic_portfolio_reoptimization()
                 
-                # Stress test new portfolio
+                # Stress test the newly re-optimized portfolio
                 stress_results = analyzer.stress_test_portfolio(new_portfolio['weights'])
                 
                 # Log or notify about portfolio changes
-                logging.info("Portfolio Rebalanced:")
-                logging.info(f"New Weights: {new_portfolio['weights']}")
-                logging.info("Stress Test Results:")
+                print("Portfolio Rebalanced:")
+                print(f"New Weights: {new_portfolio['weights']}")
+                print("Stress Test Results:")
                 for scenario, results in stress_results.items():
-                    logging.info(f"{scenario}: {results}")
-                
-                # Optional: Send alerts or notifications
+                    print(f"{scenario}: {results}")
+  
                 
             except Exception as e:
-                logging.info(f"Error in continuous monitoring: {e}")
+                print(f"Error in continuous monitoring: {e}")
             
-            # Wait for next rebalancing period
-            time.slweep(get_sleep_duration(analyzer.reoptimization_frequency))
+            # Wait for the next rebalancing period
+            time.sleep(get_sleep_duration(analyzer.reoptimization_frequency))
 
     def backtest_portfolio(self, weights, window=252):
-        """
-        Backtest the portfolio with enhanced monitoring and alerts.
-        """
+    
         if self.returns_data is None:
             raise ValueError("No returns_data for backtesting.")
 
@@ -591,11 +650,11 @@ class EnhancedIndianMarketAnalyzer:
                 df = yf.download(symbol, start=start_forward, end=end_forward, progress=False)
                 forward_data[symbol] = df['Adj Close']
             except Exception as e:
-                logging.info(f"Error fetching forward data for {symbol}: {e}")
+                print(f"Error fetching forward data for {symbol}: {e}")
 
         # Check if we have any data
         if forward_data.empty:
-            logging.info("Warning: No forward data available for testing")
+            print("Warning: No forward data available for testing")
             return None, []
 
         forward_returns = forward_data.pct_change().dropna(how='all')
@@ -603,7 +662,7 @@ class EnhancedIndianMarketAnalyzer:
 
         # Check if we have any returns data
         if forward_returns.empty:
-            logging.info("Warning: No forward returns data available for testing")
+            print("Warning: No forward returns data available for testing")
             return None, []
 
         daily_returns_fw = (forward_returns * weights).sum(axis=1)
@@ -738,7 +797,7 @@ class EnhancedIndianMarketAnalyzer:
         chat_id = os.getenv("TELEGRAM_CHAT_ID")
         
         if not bot_token or not chat_id:
-            logging.info("Skipping Telegram notification (missing token or chat_id).")
+            print("Skipping Telegram notification (missing token or chat_id).")
             return
 
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -770,27 +829,27 @@ class EnhancedIndianMarketAnalyzer:
                 resp = requests.post(url, json=payload, timeout=10)
                 
                 if resp.status_code == 200:
-                    logging.info(f"Notification part sent successfully")
+                    print(f"Notification part sent successfully")
                 else:
                     # If markdown fails, try without formatting
-                    logging.info(f"Trying without markdown formatting...")
+                    print(f"Trying without markdown formatting...")
                     payload["parse_mode"] = ""
                     resp = requests.post(url, json=payload, timeout=10)
                     
                     if resp.status_code != 200:
-                        logging.info(f"Telegram notification failed: {resp.status_code} {resp.text}")
+                        print(f"Telegram notification failed: {resp.status_code} {resp.text}")
                         
                 # Add delay between messages to avoid rate limiting
                 if len(messages) > 1:
                     time.sleep(1)
                     
             except Exception as e:
-                logging.info(f"Error sending Telegram notification: {e}")
+                print(f"Error sending Telegram notification: {e}")
 
 def main():
     # Define sector mapping for stocks
-    current_time = datetime.utcnow()
-    logging.info(f"Analysis running at UTC: {current_time}")
+    current_time = datetime.now()
+    print(f"Analysis running at UTC: {current_time}")
 
     sector_mapping = {
        "RELIANCE.NS": "Energy",
@@ -943,7 +1002,7 @@ def main():
                 forecasts[method] = forecast
                 logging.info(f"Forecast using {method} method completed.")
             except Exception as e:
-                logging.info(f"Forecasting with {method} failed: {e}")
+                logging.exception(f"Forecasting with {method} failed.")
 
         logging.info("3. Detecting communities and analyzing performance...")
         partition = analyzer.detect_communities_louvain()
@@ -972,9 +1031,12 @@ def main():
             f.write("Portfolio Stress Test Results:\n")
             for scenario, results in stress_results.items():
                 f.write(f"\n{scenario.upper()} Scenario:\n")
-                f.write(f"Max Drawdown: {results['max_drawdown']:.2%}\n")
-                f.write(f"Final Portfolio Value: {results['final_value']:.2f}\n")
-                f.write(f"Volatility: {results['volatility']:.2%}\n")
+                if all(k in results for k in ["max_drawdown", "final_value", "volatility"]):
+                    f.write(f"Max Drawdown: {results['max_drawdown']:.2%}\n")
+                    f.write(f"Final Portfolio Value: {results['final_value']:.2f}\n")
+                    f.write(f"Volatility: {results['volatility']:.2%}\n")
+                else:
+                    f.write("One or more keys are missing from this scenario's results.\n")
 
         # Periodic Re-optimization Simulation
         logging.info("Simulating Periodic Re-optimization...")
@@ -1027,10 +1089,9 @@ def main():
         analyzer.notify_via_telegram(notification)
 
     except Exception as e:
-        logging.info(f"Comprehensive Analysis Failed: {e}")
-        # Implement error logging or notification mechanism
+        logging.exception("Comprehensive Analysis Failed.")
         import traceback
-        traceback.logging.info_exc()
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
