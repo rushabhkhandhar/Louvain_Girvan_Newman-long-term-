@@ -59,83 +59,104 @@ class EnhancedIndianMarketAnalyzer:
             'high_volatility': 2.0
         }
         self.reoptimization_frequency = 'quarterly'  # Can be monthly, quarterly, annually
-
-
-    def fetch_data(self, symbols):
-        """
-        Fetch historical data for given symbols using Yahoo Finance with retries and error handling.
-        """
-        data = pd.DataFrame()
-        max_retries = 3
-        retry_delay = 5  # seconds
-        
-        for symbol in symbols:
-            for attempt in range(max_retries):
-                try:
-                    # Add a small delay between requests to avoid rate limiting
-                    time.sleep(1)
-                    
-                    # Fetch data with explicit interval and premarket data
-                    df = yf.download(
-                        symbol, 
-                        start=self.start_date, 
-                        end=self.end_date, 
-                        progress=False,
-                        interval='1d',
-                        prepost=True,
-                        timeout=30
-                    )
-                    
-                    if df.empty:
-                        print(f"Warning: No data received for {symbol}")
-                        continue
-                        
-                    if 'Adj Close' not in df.columns:
-                        print(f"Warning: No Adj Close column for {symbol}")
-                        if 'Close' in df.columns:
-                            data[symbol] = df['Close']
-                        continue
-                        
-                    data[symbol] = df['Adj Close']
-                    break  # Success - exit retry loop
-                    
-                except Exception as e:
-                    print(f"Attempt {attempt + 1}/{max_retries} failed for {symbol}: {str(e)}")
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                    else:
-                        print(f"Failed to fetch data for {symbol} after {max_retries} attempts")
-        
-        # Check if we got any data
-        if data.empty:
-            raise ValueError("No data could be fetched for any symbols")
-            
-        # Remove any columns (symbols) with all NaN values
-        data = data.dropna(axis=1, how='all')
-        
-        # Forward fill missing values up to 5 days
-        data = data.fillna(method='ffill', limit=5)
-        
-        # Remove any remaining rows with NaN values
-        data = data.dropna(how='any')
-        
-        if data.empty:
-            raise ValueError("No valid data remains after cleaning")
-            
-        self.stock_data = data
-        return data
     
+        
+    def fetch_data(self, symbols):
+            """
+            Fetch historical data for given symbols using Yahoo Finance with retries and error handling.
+            Adjusts dates by adding one day to account for Yahoo Finance's exclusive end date.
+            """
+            data = pd.DataFrame()
+            max_retries = 3
+            retry_delay = 5  # seconds
+            
+            # Add one day to both start and end dates
+            start_date = (datetime.strptime(self.start_date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+            end_date = (datetime.strptime(self.end_date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            for symbol in symbols:
+                for attempt in range(max_retries):
+                    try:
+                        # Add a small delay between requests to avoid rate limiting
+                        time.sleep(1)
+                        
+                        # Fetch data with explicit interval and premarket data
+                        df = yf.download(
+                            symbol, 
+                            start=start_date, 
+                            end=end_date, 
+                            progress=False,
+                            interval='1d',
+                            prepost=True,
+                            timeout=30
+                        )
+                        # print(df.tail())
+                        
+                        if df.empty:
+                            print(f"Warning: No data received for {symbol}")
+                            continue
+                            
+                        if 'Adj Close' not in df.columns:
+                            print(f"Warning: No Adj Close column for {symbol}")
+                            if 'Close' in df.columns:
+                                data[symbol] = df['Close']
+                            continue
+                            
+                        data[symbol] = df['Adj Close']
+                        break  # Success - exit retry loop
+                        
+                    except Exception as e:
+                        print(f"Attempt {attempt + 1}/{max_retries} failed for {symbol}: {str(e)}")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay)
+                        else:
+                            print(f"Failed to fetch data for {symbol} after {max_retries} attempts")
+            
+            # Check if we got any data
+            if data.empty:
+                raise ValueError("No data could be fetched for any symbols")
+                
+            # Remove any columns (symbols) with all NaN values
+            data = data.dropna(axis=1, how='all')
+            
+            # Forward fill missing values up to 5 days
+            data.dropna(how='any', inplace=True)
+    
+            
+            # Remove any remaining rows with NaN values
+            data = data.dropna(how='any')
+            
+            if data.empty:
+                raise ValueError("No valid data remains after cleaning")
+                
+            self.stock_data = data
+            return data
+        
     def calculate_returns(self):
         """
-        Calculate daily returns from the fetched price data.
+        Calculate returns with additional validation
         """
-        if self.stock_data is None or self.stock_data.empty:
+        if self.stock_data is None:
             raise ValueError("No stock data found. Did you call fetch_data()?")
-
-        returns = self.stock_data.pct_change().dropna(how='all')
-        returns.dropna(axis=0, how='any', inplace=True)
+            
+        if self.stock_data.empty:
+            raise ValueError("Stock data is empty")
+            
+        print(f"Calculating returns for {len(self.stock_data.columns)} symbols")
+        
+        returns = self.stock_data.pct_change()
+        
+        # Validate returns calculation
+        if returns.empty:
+            raise ValueError("Returns calculation resulted in empty dataset")
+            
+        returns = returns.dropna(how='all')
+        returns = returns.dropna(axis=0, how='any')
+        
+        print(f"Generated returns for {len(returns.columns)} symbols over {len(returns)} days")
+        
         self.returns_data = returns
-        return self.returns_data
+        return returns
 
     def build_correlation_matrix(self, threshold: float = 0.3):
         """
