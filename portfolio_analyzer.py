@@ -761,22 +761,20 @@ class EnhancedIndianMarketAnalyzer:
         weights = portfolio['weights']
         sorted_holdings = weights[weights >= 0.01].sort_values(ascending=False)
         
-        # Key Holdings Section
+       # Key Holdings Section
         notification += "💼 Key Holdings (>1%):\n"
         cumulative_sum = 0
         for stock, weight in sorted_holdings.items():
-            # Remove .NS suffix if present
-            stock_display = stock.replace('.NS', '')
-            notification += f"• {stock_display}: {weight:.1%}\n"
-            cumulative_sum += weight
-            
-            # Limit to max_items
-            if len(notification.split('\n')) >= max_items + 5:
-                break
+            if weight >= 0.01:  # Only show holdings above 1%
+                # Remove .NS suffix if present
+                stock_display = stock.replace('.NS', '')
+                notification += f"• {stock_display}: {weight:.1%}\n"
+                cumulative_sum += weight
         
-        # Add remaining if not fully allocated
-        if cumulative_sum < 1.0:
-            notification += f"• Others: {(1 - cumulative_sum):.1%}\n"
+        # Add remaining if not fully allocated and above 1%
+        remaining = 1 - cumulative_sum
+        if remaining >= 0.01:
+            notification += f"• Others: {remaining:.1%}\n"
     
         # Sector Exposure Section
         sector_exposure = self.get_sector_exposure(weights)
